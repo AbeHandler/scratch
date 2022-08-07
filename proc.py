@@ -6,14 +6,11 @@ import json
 import glob
 import re
 
-class HTMLFileExtractor(object):
+class HTMLExtractor(object):
 
-    def __init__(self, filename: str="html/20.html") -> None:
+    def __init__(self, html_str: str) -> None:
         
-        self.filename = filename
-        with open(filename, "r") as inf:
-            html_doc = inf.read()
-            self.soup = BeautifulSoup(html_doc, 'lxml')
+        self.soup = BeautifulSoup(html_str, 'lxml')
             
     def select_by_class(self, html_element="div", 
                               html_class="bbWrapper"):
@@ -27,27 +24,33 @@ class HTMLFileExtractor(object):
         regex = "<{}(.|\n)*?</{}>".format(html_tag, html_tag)
         return re.sub(regex, "", str(html_str))
 
-    def filter_out_tags_by_class(self, tags: List[Tag], _class='ipsItemControls'):
-        '''exclude tags with a given class from a list of tags'''
+    def exclude_tags_by_class(self, tags: List[Tag], _class='ipsItemControls'):
+        '''exclude tags with a given class from a list of bs4 tags'''
         return [o for o in tags if _class not in o.attrs["class"]]
 
     def extract(self, html_element="div", html_class="message-userContent"):
 
-        messages = self.select_by_class(html_element, html_class)
+        items = self.select_by_class(html_element, html_class)
 
         output = []
         
-        for i, message in enumerate(messages):
-            tags = [c for c in message.children if type(c) == Tag]
-            tags = self.filter_out_tags_by_class(tags, _class='ipsItemControls')
+        for i, item in enumerate(items):
+            tags = [c for c in item.children if type(c) == Tag]
+            tags = self.exclude_tags_by_class(tags, _class='ipsItemControls')
             for c in tags:
-                message = self.strip_tag_from_html_string(str(c), "abbr")
-                message = BeautifulSoup(message, 'lxml').text
-                message = message.replace("\n", " ").strip()
-                output.append({"body": message,
-                               "id": self.filename.replace("html", "").replace(".", "").replace("/", "") + "_" + str(i)})
+                item = self.strip_tag_from_html_string(str(c), "abbr")
+                item = BeautifulSoup(item, 'lxml')
+                item = item.text
+                item = item.replace("\n", " ").strip()
+                output.append(item)
 
         return output
-    
-extractor = HTMLFileExtractor("index.html")
-print(extractor.extract("div", "cPost_contentWrap"))
+
+
+if __name__ == "__main__":
+    with open("index.html", "r") as inf:
+        html_doc = inf.read()
+        extractor = HTMLExtractor(html_doc)
+        messages = extractor.extract(html_element="div", html_class="cPost_contentWrap")
+        for i, message in enumerate(messages):
+            print(i, message)
